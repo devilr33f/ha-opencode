@@ -1,0 +1,10 @@
+# Superpowers agentic working notes (local only)
+docs/superpowers/
+plans/
+specs/
+
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+uv.lock
