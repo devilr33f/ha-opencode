@@ -1,0 +1,15 @@
+[project]
+name = "ha-opencode"
+version = "1.0.0"
+description = "Home Assistant integration for OpenCode Go usage monitoring"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.urls]
+repository = "https://summer.node.femboy.page/devilreef/ha-opencode"
+
+[dependency-groups]
+dev = [
+    "aiohttp>=3.13.5",
+    "pytest>=9.0.3",
+]
