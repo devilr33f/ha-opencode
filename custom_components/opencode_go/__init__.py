@@ -1,7 +1,7 @@
 """OpenCode Go Home Assistant integration.
 
 Displays OpenCode Go usage quotas (rolling 5h, weekly, monthly)
-as sensors scraped from the workspace dashboard.
+and usage history (daily/cumulative tokens and cost) as sensors.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, PLATFORMS
+from .const import CONF_IMPORT_HISTORY, DOMAIN, PLATFORMS
 from .coordinator import OpenCodeGoCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass,
         entry.data["workspace_id"],
         entry.data["auth_cookie"],
+        import_history=entry.data.get(CONF_IMPORT_HISTORY, False),
     )
 
     await coordinator.async_config_entry_first_refresh()
