@@ -14,6 +14,8 @@ try:
         MAX_BACKPORT_PAGES,
         PAGE_SIZE,
         REQUEST_TIMEOUT,
+        USAGE_SERVER_ID,
+        USAGE_SERVER_INSTANCE,
         USAGE_SERVER_URL,
         USER_AGENT,
     )
@@ -22,6 +24,8 @@ except ImportError:
         MAX_BACKPORT_PAGES,
         PAGE_SIZE,
         REQUEST_TIMEOUT,
+        USAGE_SERVER_ID,
+        USAGE_SERVER_INSTANCE,
         USAGE_SERVER_URL,
         USER_AGENT,
     )
@@ -152,6 +156,8 @@ async def fetch_usage_page(
         "Cookie": f"auth={auth_cookie}",
         "Origin": "https://opencode.ai",
         "Referer": f"https://opencode.ai/workspace/{workspace_id}/usage",
+        "x-server-id": USAGE_SERVER_ID,
+        "x-server-instance": USAGE_SERVER_INSTANCE,
     }
 
     if session is None:
