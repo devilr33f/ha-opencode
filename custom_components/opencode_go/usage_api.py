@@ -29,7 +29,7 @@ except ImportError:
 _LOGGER = logging.getLogger(__name__)
 
 _RECORD_FIELD = re.compile(
-    r'(?:cacheWrite5mTokens|cacheWrite1hTokens|cacheReadTokens|'
+    r'(cacheWrite5mTokens|cacheWrite1hTokens|cacheReadTokens|'
     r'reasoningTokens|inputTokens|outputTokens):(-?\d+|null)'
 )
 _ID_FIELD = re.compile(r'\{id:"(usg_[^"]*)"')
@@ -64,8 +64,8 @@ def _parse_record(record: str) -> dict[str, Any] | None:
         result[f"time{date_match.group(1)}"] = date_match.group(2)
 
     for token_match in _RECORD_FIELD.finditer(record):
-        field_name = token_match.group(0).split(":")[0]
-        val = token_match.group(1)
+        field_name = token_match.group(1)
+        val = token_match.group(2)
         result[field_name] = 0 if val == "null" else int(val)
 
     for str_match in _STRING_FIELDS.finditer(record):
@@ -94,6 +94,8 @@ def _parse_usage_response(body: str) -> list[dict[str, Any]]:
         record = _parse_record(entry)
         if record:
             records.append(record)
+        else:
+            _LOGGER.warning("Failed to parse usage record: %s...", entry[:100])
     return records
 
 
@@ -115,10 +117,25 @@ def _build_request_body(workspace_id: str, page: int) -> str:
     })
 
 
+async def _handle_response(resp, page: int) -> list[dict[str, Any]]:
+    if resp.status == 401:
+        raise ClientResponseError(
+            resp.request_info, resp.history, status=401,
+            message="Auth cookie rejected"
+        )
+    resp.raise_for_status()
+    text = await resp.text()
+    _LOGGER.info("Fetched usage page %s (%d bytes)", page, len(text))
+    records = _parse_usage_response(text)
+    _LOGGER.info("Parsed %d usage records from page %s", len(records), page)
+    return records
+
+
 async def fetch_usage_page(
     workspace_id: str,
     auth_cookie: str,
     page: int = 0,
+    session: ClientSession | None = None,
 ) -> list[dict[str, Any]]:
     """Fetch a single page of usage history from /_server.
 
@@ -128,33 +145,26 @@ async def fetch_usage_page(
     """
     url = USAGE_SERVER_URL
     body = _build_request_body(workspace_id, page)
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Content-Type": "application/json",
+        "Accept": "*/*",
+        "Cookie": f"auth={auth_cookie}",
+        "Origin": "https://opencode.ai",
+        "Referer": f"https://opencode.ai/workspace/{workspace_id}/usage",
+    }
 
-    async with ClientSession() as session:
-        async with session.post(
-            url,
-            data=body,
-            headers={
-                "User-Agent": USER_AGENT,
-                "Content-Type": "application/json",
-                "Accept": "*/*",
-                "Cookie": f"auth={auth_cookie}",
-                "Origin": "https://opencode.ai",
-                "Referer": f"https://opencode.ai/workspace/{workspace_id}/usage",
-            },
-            timeout=REQUEST_TIMEOUT,
-        ) as resp:
-            if resp.status == 401:
-                raise ClientResponseError(
-                    resp.request_info, resp.history, status=401,
-                    message="Auth cookie rejected"
-                )
-            resp.raise_for_status()
-            text = await resp.text()
+    if session is None:
+        async with ClientSession() as new_session:
+            async with new_session.post(
+                url, data=body, headers=headers, timeout=REQUEST_TIMEOUT,
+            ) as resp:
+                return await _handle_response(resp, page)
 
-    _LOGGER.info("Fetched usage page %s (%d bytes)", page, len(text))
-    records = _parse_usage_response(text)
-    _LOGGER.info("Parsed %d usage records from page %s", len(records), page)
-    return records
+    async with session.post(
+        url, data=body, headers=headers, timeout=REQUEST_TIMEOUT,
+    ) as resp:
+        return await _handle_response(resp, page)
 
 
 async def walk_all_pages(
@@ -168,14 +178,22 @@ async def walk_all_pages(
     or when max_pages is reached.
     """
     all_records: list[dict[str, Any]] = []
-    for page in range(max_pages):
-        try:
-            records = await fetch_usage_page(workspace_id, auth_cookie, page)
-        except Exception:
-            _LOGGER.exception("Failed to fetch usage page %s", page)
-            break
-        all_records.extend(records)
-        if len(records) < PAGE_SIZE:
-            break
-    _LOGGER.info("Backport walked %s pages, %s total records", len(all_records) // PAGE_SIZE + 1, len(all_records))
+    async with ClientSession() as session:
+        last_page = 0
+        for page in range(max_pages):
+            last_page = page
+            try:
+                records = await fetch_usage_page(
+                    workspace_id, auth_cookie, page, session
+                )
+            except Exception:
+                _LOGGER.exception("Failed to fetch usage page %s", page)
+                break
+            all_records.extend(records)
+            if len(records) < PAGE_SIZE:
+                break
+    _LOGGER.info(
+        "Backport walked %s pages, %s total records",
+        last_page + 1, len(all_records),
+    )
     return all_records
