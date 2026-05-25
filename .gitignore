@@ -9,4 +9,3 @@ __pycache__/
 .venv/
 uv.lock
 .playwright-mcp/
-AGENTS.md
