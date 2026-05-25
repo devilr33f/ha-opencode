@@ -41,6 +41,9 @@ class OpenCodeGoCoordinator(DataUpdateCoordinator[dict]):
         self._backport_done = False
         self._cumulative_tokens = 0
         self._cumulative_cost = 0.0
+        self._cumulative_input = 0
+        self._cumulative_cache = 0
+        self._cumulative_output = 0
         self._seen_ids: set[str] = set()
 
     async def _async_update_data(self) -> dict:
@@ -72,8 +75,14 @@ class OpenCodeGoCoordinator(DataUpdateCoordinator[dict]):
             usage_data = {
                 "daily_tokens": None,
                 "daily_cost": None,
+                "daily_input": None,
+                "daily_cache": None,
+                "daily_output": None,
                 "cumulative_tokens": self._cumulative_tokens,
                 "cumulative_cost": self._cumulative_cost,
+                "cumulative_input": self._cumulative_input,
+                "cumulative_cache": self._cumulative_cache,
+                "cumulative_output": self._cumulative_output,
                 "usage_records": [],
                 "backport_complete": self._backport_done,
             }
@@ -92,6 +101,9 @@ class OpenCodeGoCoordinator(DataUpdateCoordinator[dict]):
 
         daily_tokens = _sum_tokens(today_records)
         daily_cost = _sum_cost(today_records)
+        daily_input = _sum_field(today_records, "inputTokens")
+        daily_cache = _sum_field(today_records, "cacheReadTokens")
+        daily_output = _sum_field(today_records, "outputTokens")
 
         if not self._backport_done and self._import_history:
             await self._do_backport()
@@ -100,13 +112,22 @@ class OpenCodeGoCoordinator(DataUpdateCoordinator[dict]):
         if new_records:
             self._cumulative_tokens += _sum_tokens(new_records)
             self._cumulative_cost += _sum_cost(new_records)
+            self._cumulative_input += _sum_field(new_records, "inputTokens")
+            self._cumulative_cache += _sum_field(new_records, "cacheReadTokens")
+            self._cumulative_output += _sum_field(new_records, "outputTokens")
             self._seen_ids.update(r["id"] for r in new_records)
 
         return {
             "daily_tokens": daily_tokens,
             "daily_cost": round(daily_cost, 6),
+            "daily_input": daily_input,
+            "daily_cache": daily_cache,
+            "daily_output": daily_output,
             "cumulative_tokens": self._cumulative_tokens,
             "cumulative_cost": round(self._cumulative_cost, 6),
+            "cumulative_input": self._cumulative_input,
+            "cumulative_cache": self._cumulative_cache,
+            "cumulative_output": self._cumulative_output,
             "usage_records": records,
             "daily_records": today_records,
             "backport_complete": self._backport_done,
@@ -121,6 +142,9 @@ class OpenCodeGoCoordinator(DataUpdateCoordinator[dict]):
             )
             self._cumulative_tokens = _sum_tokens(all_records)
             self._cumulative_cost = _sum_cost(all_records)
+            self._cumulative_input = _sum_field(all_records, "inputTokens")
+            self._cumulative_cache = _sum_field(all_records, "cacheReadTokens")
+            self._cumulative_output = _sum_field(all_records, "outputTokens")
             self._seen_ids.update(r["id"] for r in all_records)
             self._backport_done = True
             _LOGGER.info(
@@ -150,3 +174,7 @@ def _sum_tokens(records: list[dict]) -> int:
 def _sum_cost(records: list[dict]) -> float:
     total_microcents = sum(r.get("cost", 0) for r in records)
     return total_microcents / 100_000_000.0
+
+
+def _sum_field(records: list[dict], field: str) -> int:
+    return sum(r.get(field, 0) for r in records)

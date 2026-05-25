@@ -68,6 +68,48 @@ _SENSOR_META: dict[str, dict[str, Any]] = {
         "precision": 6,
         "state_class": SensorStateClass.TOTAL,
     },
+    "daily_input": {
+        "name": "OpenCode Go Daily Input Tokens",
+        "icon": "mdi:arrow-collapse-right",
+        "unit": "tokens",
+        "precision": 0,
+        "state_class": SensorStateClass.TOTAL_INCREASING,
+    },
+    "daily_cache": {
+        "name": "OpenCode Go Daily Cache Tokens",
+        "icon": "mdi:database-refresh",
+        "unit": "tokens",
+        "precision": 0,
+        "state_class": SensorStateClass.TOTAL_INCREASING,
+    },
+    "daily_output": {
+        "name": "OpenCode Go Daily Output Tokens",
+        "icon": "mdi:arrow-expand-left",
+        "unit": "tokens",
+        "precision": 0,
+        "state_class": SensorStateClass.TOTAL_INCREASING,
+    },
+    "cumulative_input": {
+        "name": "OpenCode Go Cumulative Input Tokens",
+        "icon": "mdi:arrow-collapse-right",
+        "unit": "tokens",
+        "precision": 0,
+        "state_class": SensorStateClass.TOTAL,
+    },
+    "cumulative_cache": {
+        "name": "OpenCode Go Cumulative Cache Tokens",
+        "icon": "mdi:database-refresh",
+        "unit": "tokens",
+        "precision": 0,
+        "state_class": SensorStateClass.TOTAL,
+    },
+    "cumulative_output": {
+        "name": "OpenCode Go Cumulative Output Tokens",
+        "icon": "mdi:arrow-expand-left",
+        "unit": "tokens",
+        "precision": 0,
+        "state_class": SensorStateClass.TOTAL,
+    },
 }
 
 
