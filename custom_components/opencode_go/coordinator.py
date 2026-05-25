@@ -41,6 +41,7 @@ class OpenCodeGoCoordinator(DataUpdateCoordinator[dict]):
         self._backport_done = False
         self._cumulative_tokens = 0
         self._cumulative_cost = 0.0
+        self._seen_ids: set[str] = set()
 
     async def _async_update_data(self) -> dict:
         """Fetch and parse the OpenCode Go dashboard and usage data."""
@@ -71,8 +72,8 @@ class OpenCodeGoCoordinator(DataUpdateCoordinator[dict]):
             usage_data = {
                 "daily_tokens": None,
                 "daily_cost": None,
-                "cumulative_tokens": self._cumulative_tokens or None,
-                "cumulative_cost": self._cumulative_cost or None,
+                "cumulative_tokens": self._cumulative_tokens,
+                "cumulative_cost": self._cumulative_cost,
                 "usage_records": [],
                 "backport_complete": self._backport_done,
             }
@@ -95,8 +96,11 @@ class OpenCodeGoCoordinator(DataUpdateCoordinator[dict]):
         if not self._backport_done and self._import_history:
             await self._do_backport()
 
-        self._cumulative_tokens += daily_tokens
-        self._cumulative_cost += daily_cost
+        new_records = [r for r in records if r["id"] not in self._seen_ids]
+        if new_records:
+            self._cumulative_tokens += _sum_tokens(new_records)
+            self._cumulative_cost += _sum_cost(new_records)
+            self._seen_ids.update(r["id"] for r in new_records)
 
         return {
             "daily_tokens": daily_tokens,
@@ -116,6 +120,7 @@ class OpenCodeGoCoordinator(DataUpdateCoordinator[dict]):
             )
             self._cumulative_tokens = _sum_tokens(all_records)
             self._cumulative_cost = _sum_cost(all_records)
+            self._seen_ids.update(r["id"] for r in all_records)
             self._backport_done = True
             _LOGGER.info(
                 "Backport complete: %s tokens, $%s",
