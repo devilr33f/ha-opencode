@@ -9,7 +9,7 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 
-from .const import CONF_AUTH_COOKIE, CONF_WORKSPACE_ID, DOMAIN
+from .const import CONF_AUTH_COOKIE, CONF_IMPORT_HISTORY, CONF_WORKSPACE_ID, DOMAIN
 from .scrape import fetch_and_parse
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,6 +18,7 @@ CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_WORKSPACE_ID): str,
         vol.Required(CONF_AUTH_COOKIE): str,
+        vol.Optional(CONF_IMPORT_HISTORY, default=True): bool,
     }
 )
 
@@ -51,6 +52,7 @@ class OpenCodeGoConfigFlow(ConfigFlow, domain=DOMAIN):
                     data={
                         CONF_WORKSPACE_ID: workspace_id,
                         CONF_AUTH_COOKIE: auth_cookie,
+                        CONF_IMPORT_HISTORY: user_input.get(CONF_IMPORT_HISTORY, True),
                     },
                 )
 

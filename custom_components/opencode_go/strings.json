@@ -6,7 +6,8 @@
         "description": "Enter your workspace ID and auth cookie to monitor quota usage.\n\nFind the auth cookie in your browser devtools (Application > Cookies > opencode.ai > auth).",
         "data": {
           "workspace_id": "Workspace ID",
-          "auth_cookie": "Auth Cookie"
+          "auth_cookie": "Auth Cookie",
+          "import_history": "Import historical usage (backport all previous requests)"
         }
       }
     },
