@@ -87,7 +87,7 @@ class OpenCodeGoCoordinator(DataUpdateCoordinator[dict]):
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         today_records = [
             r for r in records
-            if r["timeCreated"].startswith(today_str)
+            if r.get("timeCreated", "").startswith(today_str)
         ]
 
         daily_tokens = _sum_tokens(today_records)
@@ -108,6 +108,7 @@ class OpenCodeGoCoordinator(DataUpdateCoordinator[dict]):
             "cumulative_tokens": self._cumulative_tokens,
             "cumulative_cost": round(self._cumulative_cost, 6),
             "usage_records": records,
+            "daily_records": today_records,
             "backport_complete": self._backport_done,
         }
 

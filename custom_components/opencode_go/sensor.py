@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import OpenCodeGoCoordinator
+from .coordinator import OpenCodeGoCoordinator, _total_input_tokens
 
 _SENSOR_META: dict[str, dict[str, Any]] = {
     "rolling": {
@@ -137,30 +137,31 @@ class OpenCodeGoSensor(CoordinatorEntity[OpenCodeGoCoordinator], SensorEntity):
                 "next_reset": window["next_reset"],
             }
         attrs: dict[str, Any] = {}
-        records = self.coordinator.data.get("usage_records", [])
-        if records and self._sensor_key in ("daily_tokens", "cumulative_tokens"):
-            attrs["model_breakdown"] = _model_token_breakdown(records)
-        elif records and self._sensor_key in ("daily_cost", "cumulative_cost"):
-            attrs["model_breakdown"] = _model_cost_breakdown(records)
-        attrs["last_request_time"] = records[0]["timeCreated"] if records else None
+        if self._sensor_key in ("daily_tokens", "daily_cost"):
+            daily = self.coordinator.data.get("daily_records", [])
+            if daily:
+                if self._sensor_key == "daily_tokens":
+                    attrs["model_breakdown"] = _model_token_breakdown(daily)
+                else:
+                    attrs["model_breakdown"] = _model_cost_breakdown(daily)
+            attrs["last_request_time"] = daily[0].get("timeCreated") if daily else None
+        elif self._sensor_key in ("cumulative_tokens", "cumulative_cost"):
+            records = self.coordinator.data.get("usage_records", [])
+            if records:
+                if self._sensor_key == "cumulative_tokens":
+                    attrs["model_breakdown"] = _model_token_breakdown(records)
+                else:
+                    attrs["model_breakdown"] = _model_cost_breakdown(records)
+            attrs["last_request_time"] = records[0].get("timeCreated") if records else None
         attrs["backport_complete"] = self.coordinator.data.get("backport_complete", False)
         return attrs
-
-
-def _total_input(record: dict) -> int:
-    return (
-        record.get("inputTokens", 0)
-        + record.get("cacheReadTokens", 0)
-        + record.get("cacheWrite5mTokens", 0)
-        + record.get("cacheWrite1hTokens", 0)
-    )
 
 
 def _model_token_breakdown(records: list[dict]) -> dict[str, int]:
     breakdown: dict[str, int] = {}
     for r in records:
         model = r.get("model", "unknown")
-        breakdown[model] = breakdown.get(model, 0) + _total_input(r)
+        breakdown[model] = breakdown.get(model, 0) + _total_input_tokens(r)
     return breakdown
 
 
